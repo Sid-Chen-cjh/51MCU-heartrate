@@ -3,6 +3,7 @@
  * 通过按键可以循环切换显示当前心率、低警告值和高警告值界面，并且可以对警告值进行设置。
  */
 #include <REGX52.H>
+#include <string.h> 
 #include <intrins.h>
 
 #define uint            unsigned int
@@ -40,6 +41,7 @@ uchar View_L[3];			// 低警告值显示缓冲区
 uchar View_H[3];			// 高警告值显示缓冲区
 uchar heartrate_H=100;		// 高警告阈值
 uchar heartrate_L=40;		// 低警告阈值
+uchar sentence[51];
 
 uchar Key_Change;		// 按键状态改变标志
 uchar Key_Value;		// 按键值
@@ -267,14 +269,14 @@ void Time2() interrupt 5
 					if(((60000/heartrate_count)>=heartrate_H)||((60000/heartrate_count)<=heartrate_L))//心率不在范围内报警
 					{
 						buzzer = 0;		// 蜂鸣器响
-						char sentence["心率异常！当前心率值为："];
+						strcpy(sentence, "Abnormal heart rate! Current heart rate value is:");
 						Uart_SendString(sentence);
 						Uart_SendString(View_Data);
 					}
 					else
 					{
 						buzzer = 1;		//不响
-						char sentence["心率正常！当前心率值为："];
+						strcpy(sentence, "Heart rate is normal! Current heart rate value is:");
 						Uart_SendString(sentence);
 						Uart_SendString(View_Data);
 					}
