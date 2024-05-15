@@ -27,8 +27,9 @@ void lcd_1602_word(uchar Adress_Com,uchar Num_Adat,uchar *Adress_Data);
 void InitLcd();	
 // 定时器初始化函数声明
 void Tim_Init();
-// UART串口通信初始化函数声明
+// UART串口通信函数声明
 void Uart_Init();
+void Uart_SendString(char *str);
 
 // 全局变量声明
 uchar heartrate_Change=0;	// 心跳计数状态标志
@@ -39,7 +40,6 @@ uchar View_L[3];			// 低警告值显示缓冲区
 uchar View_H[3];			// 高警告值显示缓冲区
 uchar heartrate_H=100;		// 高警告阈值
 uchar heartrate_L=40;		// 低警告阈值
-
 
 uchar Key_Change;		// 按键状态改变标志
 uchar Key_Value;		// 按键值
@@ -110,7 +110,7 @@ void main()
 				if(View_Data[0] == 0x30)	// 最高位为0时不显示
 					View_Data[0] = ' ';		// 将空数据字符替换为空格
 			}
-			else	//心率不正常（计数超过5000，也就是两次信号时间超过5s）不显示数据
+			else	//计数超过5000,也就是两次信号时间超过5s,不显示数据
 			{
 				View_Data[0] = ' ';
 				View_Data[1] = ' ';
@@ -210,7 +210,7 @@ void Time2() interrupt 5
 	
 	switch (heartrate_Con)	// 处理心跳信号输入
 	{
-		case 0:	 	//默认Xintiao_Con是为0的
+		case 0:	 	//默认heartrate_Con是为0的
 		{
 			if(!heartrate)			//每10ms（上面的定时器）检测一次脉搏是否有信号
 			{
@@ -258,26 +258,36 @@ void Time2() interrupt 5
 		{
 			if(heartrate)//超过30ms有信号，判定此次是脉搏信号，然后当信号消失后，执行以下程序
 			{
-				if(heartrate_Change == 1)//心率计原理为检测两次脉冲间隔时间计算心率，变量Xintiao_Change第一次脉冲时为0的，所有走下面的else，第二次走这里
+				if(heartrate_Change == 1)//心率计原理为检测两次脉冲间隔时间计算心率，变量heartrate_Change第一次脉冲时为0的，所有走下面的else，第二次走这里
 				{
 					View_Data[0] = (60000 / heartrate_count) / 100 + 0x30;//计算心跳并拆字显示：心跳计时是以1ms为单位，两次心跳中间计数如果是1000次，也就是1000*1ms=1000ms=1s
 					View_Data[1] = (60000 / heartrate_count) % 100 / 10 + 0x30;//那么计算出的一分钟（60s）心跳数就是：60*1000/（1000*1ms）=60次	  其中60是一分钟60s，1000是一秒有1000ms，1000是计数值，1是一次计数对应 的时间是1ms
 					View_Data[2] = (60000 / heartrate_count) % 10 + 0x30;//计算出的心跳数/100得到心跳的百位，%100是取余的，就是除以100的余数，再除以10就得到十位了，以此类推
 					//拆字后的单个数据+0x30的目的是得到对应数字的液晶显示码，数字0对应的液晶显示码是0x30，1是0x30+1，以此类推							  
 					if(((60000/heartrate_count)>=heartrate_H)||((60000/heartrate_count)<=heartrate_L))//心率不在范围内报警
+					{
 						buzzer = 0;		// 蜂鸣器响
+						char sentence["心率异常！当前心率值为："];
+						Uart_SendString(sentence);
+						Uart_SendString(View_Data);
+					}
 					else
+					{
 						buzzer = 1;		//不响
+						char sentence["心率正常！当前心率值为："];
+						Uart_SendString(sentence);
+						Uart_SendString(View_Data);
+					}
 					
 					View_Change = 1; 		//计算出心率后启动显示
 					heartrate_count = 0;	//心跳计数清零
 					heartrate_Change = 0;	//计算出心率后该变量清零，准备下次检测心率
 					stop = 0;				//计算出心率后stop清零
 				}
-				else	//第一次脉冲时Xintiao_Change为0
+				else	//第一次脉冲时heartrate_Change为0
 				{
 					heartrate_count = 0;	//脉冲计时变量清零，开始计时
-					heartrate_Change = 1;	//Xintiao_Change置1，准备第二次检测到脉冲时计算心率
+					heartrate_Change = 1;	//heartrate_Change置1，准备第二次检测到脉冲时计算心率
 				}
 				heartrate_Con = 0;		//清零，准备检测下一次脉冲
 				break;
@@ -408,4 +418,14 @@ void Tim_Init()
 	TL0 = 0x18;
 	TH2 = 0xd8;
 	TL2 = 0xf0;
+}
+
+void Uart_SendString(char *str) 
+{
+    while(*str != '\0') // 直到遇到字符串结束符'\0'
+	{
+        SBUF = *str++; 	// 发送当前字符并移动到下一个字符
+        while(!TI); 	// 等待发送完成，TI=1表示发送完毕
+        TI = 0; 		// 清除发送中断标志，准备下一次发送
+    }
 }
