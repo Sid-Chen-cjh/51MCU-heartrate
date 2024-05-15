@@ -54,24 +54,24 @@ void main()
 	Tim_Init();		// 初始化LCD和定时器
 	lcd_1602_word(0x80,16,"Heart Rate:     ");	// 在LCD上显示初始界面
 	TR0=1;
-	TR1=1;		// 开启定时器0和定时器1，进入主循环监控按键输入与心跳速率，并根据状态更新显示
+	TR2=1;		// 开启定时器0和定时器1，进入主循环监控按键输入与心跳速率，并根据状态更新显示
 	while(1)
 	{
 		// 检测按键状态变化，并根据按键值更新显示界面或修改警告值
 		if(Key_Change)
 		{
-			Key_Change = 0;		//复位按键状态改变标志
-			View_Change = 1;	// 触发显示更新标志
+			Key_Change = 0;				// 复位按键状态改变标志
+			View_Change = 1;			// 触发显示更新标志
 			switch(Key_Value)
 			{
-				case 1:
+				case 1:					//设置键按下
 				{
-					View_Con++;
+					View_Con++;			//设置的位加
 					if(View_Con == 3)	// 如果当前界面是高警告值设置界面，则循环回到低警告值设置界面
 						View_Con = 0;
-					break;		//0-1-2循环
+					break;				//跳出，下同
 				}
-				case 2:
+				case 2:					//加键按下
 				{
 					if(View_Con == 2)	// 在高警告值设置界面时，增加高警告值
 					{
@@ -80,16 +80,16 @@ void main()
 					}
 					if(View_Con == 1)	// 在低警告值设置界面时，增加低警告值
 					{
-						if(heartrate_L < heartrate_H-1)
+						if(heartrate_L < heartrate_H-1)	//下限值小于上限-1
 							heartrate_L++;
 					}
 					break;
 				}
-				case 3:
+				case 3:					//减键按下
 				{
 					if(View_Con == 2)	// 在高警告值设置界面时，减少高警告值
 					{
-						if(heartrate_H > heartrate_L+1)
+						if(heartrate_H > heartrate_L+1)	//上限数据大于下限+1
 							heartrate_H--;
 					}
 					if(View_Con == 1)	 // 在低警告值设置界面时，减少低警告值
@@ -101,16 +101,16 @@ void main()
 				} 
 			}
 		}
-		// 根据显示更新标志更新LCD显示内容
+		/* 根据显示更新标志更新LCD显示内容 */
 		if(View_Change)
 		{
-			View_Change = 0;	// 复位显示更新标志
-			if(stop == 0)	// 如果心跳检测未停止，更新显示数据
+			View_Change = 0;				// 复位显示更新标志
+			if(stop == 0)					// 如果心跳检测正常，更新显示数据
 			{
-				if(View_Data[0] == 0x30)
-					View_Data[0] = ' ';	// 将空数据字符替换为空格
+				if(View_Data[0] == 0x30)	// 最高位为0时不显示
+					View_Data[0] = ' ';		// 将空数据字符替换为空格
 			}
-			else	// 如果心跳检测已停止，清空显示数据
+			else	//心率不正常（计数超过5000，也就是两次信号时间超过5s）不显示数据
 			{
 				View_Data[0] = ' ';
 				View_Data[1] = ' ';
@@ -119,26 +119,26 @@ void main()
 
 			switch(View_Con)	// 根据当前显示界面，更新相应的显示内容
 			{
-				case 0:	// 当前显示心率界面
+				case 0:	// 正常显示当前心率界面
 				{
-					lcd_1602_word(0x80,16,"Heart Rate:     ");
-					lcd_1602_word(0xc0,16,"                ");
-					lcd_1602_word(0xcd,3,View_Data);
+					lcd_1602_word(0x80,16,"Heart Rate:     ");	//显示一行数据
+					lcd_1602_word(0xc0,16,"                ");	//显示第二行数据
+					lcd_1602_word(0xcd,3,View_Data);			//第二行显示心率
 					break;
 				}
-				case 1:	 // 当前显示低警告值设置界面
+				case 1:	 // 显示低警告值设置界面时
 				{
-					lcd_1602_word(0x80,16,"Heart Rate:     ");
+					lcd_1602_word(0x80,16,"Heart Rate:     ");	//第一行显示心率
 					lcd_1602_word(0x8d,3,View_Data);
 			   
-					View_L[0] = heartrate_L / 100 + 0x30;	// 将低警告值转换为字符形式
+					View_L[0] = heartrate_L / 100 + 0x30;		// 将低警告值转换为字符形式
 					View_L[1] = heartrate_L % 100 / 10 + 0x30;
 					View_L[2] = heartrate_L % 10 + 0x30;
 
-					if(View_L[0] == 0x30)
-						View_L[0] = ' ';	// 处理低警告值显示字符前的空字符
+					if(View_L[0] == 0x30)		// 最高位为0时，不显示
+						View_L[0] = ' ';		// 处理低警告值显示字符前的空字符
 			   
-					lcd_1602_word(0xC0,16,"Warning L :     ");
+					lcd_1602_word(0xC0,16,"Warning L :     ");	//第二行显示下限数据
 					lcd_1602_word(0xCd,3,View_L);
 					break;
 				}
@@ -147,12 +147,12 @@ void main()
 					lcd_1602_word(0x80,16,"Heart Rate:     ");
 					lcd_1602_word(0x8d,3,View_Data);
 			   
-					View_H[0] = heartrate_H / 100 + 0x30;	// 将高警告值转换为字符形式
+					View_H[0] = heartrate_H / 100 + 0x30;		// 将高警告值转换为字符形式
 					View_H[1] = heartrate_H % 100 / 10 + 0x30;
 					View_H[2] = heartrate_H % 10 + 0x30;
 
-					if(View_H[0] == 0x30)
-						View_H[0] = ' ';	// 处理高警告值显示字符前的空字符
+					if(View_H[0] == 0x30)		// 最高位为0时，不显示
+						View_H[0] = ' ';		// 处理高警告值显示字符前的空字符
 			   
 					lcd_1602_word(0xC0,16,"Warning H :     ");
 					lcd_1602_word(0xCd,3,View_H);
@@ -163,46 +163,46 @@ void main()
 	}
 }
 
-/* 定时器1中断服务函数：处理按键输入和心跳检测 */
-void Time1() interrupt 3
+/* 定时器2中断服务函数：处理按键输入和心跳检测 */
+void Time2() interrupt 5
 {
 	static uchar Key_Con,heartrate_Con;
-	TH1=0xd8;
-	TL1=0xf0;
-	switch(Key_Con)
+	TH2=0xd8;			//重新赋初值,使得间隔为10ms
+	TL2=0xf0;
+	switch(Key_Con)		//无按键按下时此值为0
 	{
-		case 0:	// 按键按下检测
+		case 0:			//每10ms扫描此处
 		{
-			if((P3 & 0x07) != 0x07)
+			if((P3 & 0x07) != 0x07)	//扫描按键是否有按下
 			{
-				Key_Con++;
+				Key_Con++;			//有按下此值加1，值为1
 			}
 			break;
 		}
-		case 1:	// 确认按键按下
+		case 1:			//10ms后二次进入中断后扫描此处（Key_Con为1）
 		{
-			if((P3 & 0x07) != 0x07)
+			if((P3 & 0x07) != 0x07)		//第二次进入中断时，按键仍然是按下（起到按键延时去抖的作用）
 			{
-				Key_Con++;
-				switch(P3 & 0x07)	// 确定是哪个按键按下
+				Key_Con++;				//变量加1，值为2
+				switch(P3 & 0x07)		//确定是哪个按键按下
 				{
-					case 0x06: Key_Value = 1; break;
+					case 0x06: Key_Value = 1; break;	//判断好按键后将键值赋值给变量Key_Value
 					case 0x05: Key_Value = 2; break;
 					case 0x03: Key_Value = 3; break;
 				}
 			}
-			else
+			else						//如果10ms时没有检测到按键按下（按下时间过短）
 			{
-				Key_Con = 0;
+				Key_Con = 0;			//变量清零，重新检测按键
 			}
 			break;
 		}
-		case 2:	// 等待按键释放
+		case 2:			//20ms后检测按键
 		{
-			if((P3&0x07) == 0x07)
+			if((P3&0x07) == 0x07)		//检测按键是否还是按下状态
 			{
-				Key_Change = 1;	// 触发按键状态改变标志
-				Key_Con = 0;
+				Key_Change = 1;			//有按键按下使能变量，（此变量为1时才会处理键值数据）
+				Key_Con = 0;			//变量清零，等待下次有按键按下
 			}
 			break;
 		}
@@ -210,96 +210,95 @@ void Time1() interrupt 3
 	
 	switch (heartrate_Con)	// 处理心跳信号输入
 	{
-		case 0:	// 等待心跳信号
+		case 0:	 	//默认Xintiao_Con是为0的
 		{
-			if(!heartrate)
+			if(!heartrate)			//每10ms（上面的定时器）检测一次脉搏是否有信号
 			{
-				heartrate_Con++;
+				heartrate_Con++;	//如果有信号，变量加一，程序就会往下走了
 			}
 			break;
 		}
-		case 1:	// 确认心跳信号未收到
+		case 1:		//确认心跳信号未收到
 		{
-			if(!heartrate)
+			if(!heartrate)			//每过10ms检测一下信号是否还存在
 			{
-				heartrate_Con++;
+				heartrate_Con++;	//存在就加一
 			}
 			else
 			{
-				heartrate_Con = 0;
+				heartrate_Con = 0;	//如果不存在了，检测时间很短，说明检测到的不是脉搏信号，可能是其他干扰，将变量清零，跳出此次检测
 			}
 			break;
 		}
-		case 2:	// 等待下一个心跳周期
+		case 2:		//等待下一个心跳周期
 		{
 			if(!heartrate)
 			{
-				heartrate_Con++;
+				heartrate_Con++;	//存在就加一
 			}
 			else
 			{
-				heartrate_Con = 0;
+				heartrate_Con = 0;	//如果不存在了，检测时间很短，说明检测到的不是脉搏信号，可能是其他干扰，将变量清零，跳出此次检测
 			} 
 			break;
 		}
-		case 3:	// 等待确认心跳周期
+		case 3:		//等待确认心跳周期
 		{
 			if(!heartrate)
 			{
-				heartrate_Con++;
+				heartrate_Con++;	//存在就加一
 			}
 			else
 			{
-				heartrate_Con = 0;
+				heartrate_Con = 0;	//如果不存在了，检测时间很短，说明检测到的不是脉搏信号，可能是其他干扰，将变量清零，跳出此次检测
 			} 
 			break;
 		}
-		case 4:	 // 处理心跳周期计数和更新显示
+		case 4:	 	//处理心跳周期计数和更新显示
 		{
-			if(heartrate)
+			if(heartrate)//超过30ms有信号，判定此次是脉搏信号，然后当信号消失后，执行以下程序
 			{
-				if(heartrate_Change == 1)	// 如果是新的心跳周期
+				if(heartrate_Change == 1)//心率计原理为检测两次脉冲间隔时间计算心率，变量Xintiao_Change第一次脉冲时为0的，所有走下面的else，第二次走这里
 				{
-					View_Data[0] = (60000 / heartrate_count) / 100 + 0x30;	// 计算并转换为字符形式
-					View_Data[1] = (60000 / heartrate_count) % 100 / 10 + 0x30;
-					View_Data[2] = (60000 / heartrate_count) % 10 + 0x30;
-												  
-					if(((60000/heartrate_count)>=heartrate_H)||((60000/heartrate_count)<=heartrate_L))
-						buzzer = 0;	// 关闭蜂鸣器
+					View_Data[0] = (60000 / heartrate_count) / 100 + 0x30;//计算心跳并拆字显示：心跳计时是以1ms为单位，两次心跳中间计数如果是1000次，也就是1000*1ms=1000ms=1s
+					View_Data[1] = (60000 / heartrate_count) % 100 / 10 + 0x30;//那么计算出的一分钟（60s）心跳数就是：60*1000/（1000*1ms）=60次	  其中60是一分钟60s，1000是一秒有1000ms，1000是计数值，1是一次计数对应 的时间是1ms
+					View_Data[2] = (60000 / heartrate_count) % 10 + 0x30;//计算出的心跳数/100得到心跳的百位，%100是取余的，就是除以100的余数，再除以10就得到十位了，以此类推
+					//拆字后的单个数据+0x30的目的是得到对应数字的液晶显示码，数字0对应的液晶显示码是0x30，1是0x30+1，以此类推							  
+					if(((60000/heartrate_count)>=heartrate_H)||((60000/heartrate_count)<=heartrate_L))//心率不在范围内报警
+						buzzer = 0;		// 蜂鸣器响
 					else
-						buzzer = 1;
+						buzzer = 1;		//不响
 					
-					View_Change = 1;
-					heartrate_count = 0;
-					heartrate_Change = 0;
-					stop = 0;			}
-				else
-				{
-					heartrate_count = 0;
-					heartrate_Change = 1;
+					View_Change = 1; 		//计算出心率后启动显示
+					heartrate_count = 0;	//心跳计数清零
+					heartrate_Change = 0;	//计算出心率后该变量清零，准备下次检测心率
+					stop = 0;				//计算出心率后stop清零
 				}
-				heartrate_Con = 0;
+				else	//第一次脉冲时Xintiao_Change为0
+				{
+					heartrate_count = 0;	//脉冲计时变量清零，开始计时
+					heartrate_Change = 1;	//Xintiao_Change置1，准备第二次检测到脉冲时计算心率
+				}
+				heartrate_Con = 0;		//清零，准备检测下一次脉冲
 				break;
 			}
 		}
 	}
 }
 
+/**定时器T0工作函数**/
 void Time0() interrupt 1
- /* * 函数名称：Time0
-  * 描述：定时器0中断服务函数，用于实现特定时间间隔的任务。
-  */
 {
-	TH0=0xfc;
+	TH0=0xfc;		// 设置定时器0的初值,使其中断周期为1ms
 	TL0=0x18;
 	heartrate_count++;
-	if(heartrate_count == 5000)
+	if(heartrate_count == 5000)	// 每隔5s，进行一次状态更新
 	{
-		heartrate_count = 0;
-		View_Change = 1;
-		heartrate_Change = 0;
-		stop = 1;
-		buzzer = 1;
+		heartrate_count = 0;	// 重置心率计数器
+		View_Change = 1;		// 触发视图更新
+		heartrate_Change = 0;	// 重置心率变化标志，准备再次检测
+		stop = 1;				// 心跳计数超过5000后说明心率不正常或者没有测出，stop置1
+		buzzer = 1;				// 关闭蜂鸣器
 	}
 }
 
@@ -409,6 +408,4 @@ void Tim_Init()
 	TL0 = 0x18;
 	TH2 = 0xd8;
 	TL2 = 0xf0;
-	TR0 = 1;			//定时器0开始计时
-	TR2 = 1;			//定时器2开始计时
 }
